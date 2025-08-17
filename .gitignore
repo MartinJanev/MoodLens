@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.log
+.DS_Store
+.idea/
+*.sqlite3
+*.db
+*.bak
+*.swp
+*.swo
+*.~
+
+datasets/
+src/data/fer2013.csv

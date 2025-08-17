@@ -24,7 +24,7 @@ class TrainConfig:
     prefetch_factor: int = 4
     persistent_workers: bool = True
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    out_dir: str = "models/fer2013/cnn_small"
+    out_dir: str = "models"
     # Early stopping parameters
     early_stop_patience: int = 6
     early_stop_delta: float = 1e-4
@@ -181,7 +181,7 @@ def train_model(model, train_ds, val_ds, class_names: List[str], cfg: TrainConfi
             best_val = val_loss
             bad_epochs = 0
             save_checkpoint(
-                f"{cfg.out_dir}/best.pt",
+                f"{cfg.out_dir}/model.pt",
                 {"model": model.state_dict(), "classes": class_names, "epoch": epoch, "val_loss": val_loss, "val_acc": val_acc}
             )
         else:
@@ -190,4 +190,4 @@ def train_model(model, train_ds, val_ds, class_names: List[str], cfg: TrainConfi
                 print(f"Early stopping at epoch {epoch}.")
                 break
 
-    print("Training complete. Best checkpoint saved to", f"{cfg.out_dir}/best.pt")
+    print("Training complete. Best checkpoint saved to", f"{cfg.out_dir}/model.pt")

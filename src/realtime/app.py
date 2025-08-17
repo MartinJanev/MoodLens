@@ -4,6 +4,7 @@ from ..realtime.face_class import HaarFaceDetector
 from ..utils.io import load_checkpoint
 from ..models.factory import create_model
 
+
 def _preprocess_face_bgr_to_model(gray_or_bgr, use_clahe: bool = True) -> np.ndarray:
     """
     Accepts a BGR face crop or a grayscale array, returns float32 HxW in [0,1]
@@ -22,9 +23,10 @@ def _preprocess_face_bgr_to_model(gray_or_bgr, use_clahe: bool = True) -> np.nda
         g = gray_or_bgr
     g = cv2.resize(g, (48, 48), interpolation=cv2.INTER_AREA)
     if use_clahe:
-        g = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)).apply(g)
+        g = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(g)
     g = (g.astype("float32") / 255.0)
     return g  # HxW float32
+
 
 def softmax_to_label(probs: np.ndarray, classes: List[str]) -> Tuple[str, int]:
     """
@@ -39,26 +41,30 @@ def softmax_to_label(probs: np.ndarray, classes: List[str]) -> Tuple[str, int]:
     k = int(probs.argmax())
     return f"{classes[k]} {probs[k]:.2f}", k  # return label and top-class index
 
+
 # --- Colors (BGR) per emotion; falls back to green if a class name is unknown
 _DEFAULT_COLOR_MAP = {
-    "anger":    (0,   0, 255),   # red
-    "disgust":  (0, 128,   0),   # dark green
-    "fear":     (128,  0, 128),  # purple
-    "happy":    (0, 255, 255),   # yellow
-    "sad":      (255,  0,   0),  # blue
-    "surprise": (255,255,   0),  # cyan
-    "neutral":  (200,200, 200),  # gray
+    "anger": (0, 0, 255),  # red
+    "disgust": (0, 128, 0),  # dark green
+    "fear": (128, 0, 128),  # purple
+    "happy": (0, 255, 255),  # yellow
+    "sad": (255, 0, 0),  # blue
+    "surprise": (255, 255, 0),  # cyan
+    "neutral": (200, 200, 200),  # gray
 }
-def _build_color_map(classes: List[str]) -> Dict[str, Tuple[int,int,int]]:
+
+
+def _build_color_map(classes: List[str]) -> Dict[str, Tuple[int, int, int]]:
     """
     Builds a color map for the given classes, mapping each class name to a BGR color.
     If a class name is not found in the default map, it defaults to green (0, 255, 0).
     :param classes: List of class names (case-insensitive)
     :return: Dictionary mapping class names to BGR tuples
     """
-    return {c: _DEFAULT_COLOR_MAP.get(c.lower(), (0,255,0)) for c in classes}
+    return {c: _DEFAULT_COLOR_MAP.get(c.lower(), (0, 255, 0)) for c in classes}
 
-def _iou(a: Tuple[int,int,int,int], b: Tuple[int,int,int,int]) -> float:
+
+def _iou(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> float:
     """
     Computes the Intersection over Union (IoU) of two bounding boxes.
     Each box is defined by (x, y, width, height).
@@ -68,7 +74,8 @@ def _iou(a: Tuple[int,int,int,int], b: Tuple[int,int,int,int]) -> float:
     :param b: Second bounding box (x, y, width, height)
     :return: IoU as a float in [0, 1]
     """
-    ax, ay, aw, ah = a; bx, by, bw, bh = b
+    ax, ay, aw, ah = a;
+    bx, by, bw, bh = b
     ax2, ay2 = ax + aw, ay + ah
     bx2, by2 = bx + bw, by + bh
     ix1, iy1 = max(ax, bx), max(ay, by)
@@ -76,20 +83,21 @@ def _iou(a: Tuple[int,int,int,int], b: Tuple[int,int,int,int]) -> float:
     iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
     inter = iw * ih
     if inter <= 0: return 0.0
-    union = aw*ah + bw*bh - inter
+    union = aw * ah + bw * bh - inter
     return inter / union if union > 0 else 0.0
 
+
 def run_webcam(
-    model_path: str,
-    cascade_path: str,
-    device: str = "cpu",
-    use_clahe: bool = True,
-    model_name: str = "cnn_small",
-    classes: Optional[List[str]] = None,
-    camera_index: int = 0,
-    detect_every_n: int = 2,
-    ema_decay: float = 0.9,        # ↑ bigger = smoother/slower changes (0..1)
-    box_thickness: int = 3          # slightly thicker box
+        model_path: str,
+        cascade_path: str,
+        device: str = "cpu",
+        use_clahe: bool = True,
+        model_name: str = "cnn_small",
+        classes: Optional[List[str]] = None,
+        camera_index: int = 0,
+        detect_every_n: int = 2,
+        ema_decay: float = 0.9,  # ↑ bigger = smoother/slower changes (0..1)
+        box_thickness: int = 3  # slightly thicker box
 ) -> None:
     """
     Runs a real-time emotion detection webcam app using a pre-trained model.
@@ -110,7 +118,7 @@ def run_webcam(
     and applies the specified emotion detection model to each detected face.
     """
     state = load_checkpoint(model_path)
-    classes = classes or state.get("classes") or ["Anger","Disgust","Fear","Happy","Sad","Surprise","Neutral"]
+    classes = classes or state.get("classes") or ["Anger", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]
     model = create_model(model_name, num_classes=len(classes))
     model.load_state_dict(state["model"])
     model.eval().to(device)
@@ -123,10 +131,10 @@ def run_webcam(
         raise RuntimeError("Could not open camera.")
 
     frame_i = 0
-    cached_boxes: List[Tuple[int,int,int,int]] = []
+    cached_boxes: List[Tuple[int, int, int, int]] = []
 
     # Keep smoothed probabilities matched to boxes across frames
-    prev_boxes: List[Tuple[int,int,int,int]] = []
+    prev_boxes: List[Tuple[int, int, int, int]] = []
     prev_probs: List[np.ndarray] = []
 
     try:
@@ -145,8 +153,8 @@ def run_webcam(
 
             # Step 1: raw probs for current boxes
             curr_probs: List[np.ndarray] = []
-            for (x,y,w,h) in boxes:
-                face = frame[y:y+h, x:x+w]
+            for (x, y, w, h) in boxes:
+                face = frame[y:y + h, x:x + w]
                 g = _preprocess_face_bgr_to_model(face, use_clahe=use_clahe)
                 tens = torch.from_numpy(g).unsqueeze(0).unsqueeze(0).to(device)  # (1,1,48,48)
                 with torch.no_grad():
@@ -169,13 +177,14 @@ def run_webcam(
                 smoothed_probs.append(smoothed)
 
             # Step 3: draw with per-emotion colors and thicker boxes
-            for (x,y,w,h), probs in zip(boxes, smoothed_probs):
+            for (x, y, w, h), probs in zip(boxes, smoothed_probs):
                 lab, k = softmax_to_label(probs, classes)
-                color = color_map.get(classes[k], (0,255,0))
-                cv2.rectangle(frame, (x,y), (x+w, y+h), color, box_thickness)
+                color = color_map.get(classes[k], (0, 255, 0))
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, box_thickness)
                 cv2.putText(frame, lab, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2, cv2.LINE_AA)
 
             cv2.imshow("Emotion Vision", frame)
+            cv2.setWindowProperty("Emotion Vision", cv2.WND_PROP_TOPMOST, 1)
             frame_i += 1
 
             # update state for next frame

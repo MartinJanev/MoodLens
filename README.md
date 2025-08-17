@@ -48,9 +48,7 @@ emotion_vision/
 │   └── test_private.csv       # generated
 │
 ├── models/                    # saved model checkpoints
-│   └── fer2013/
-│       └── cnn_small/         # trained CNN model
-│           └── best.pt         # best checkpoint (state dict)
+│   └── best.pt                # best checkpoint (state dict)
 │
 ├── assets/                    
 │   └── haarcascade_frontalface_default.xml

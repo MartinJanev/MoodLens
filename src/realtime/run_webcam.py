@@ -2,7 +2,7 @@
 from src.realtime.app import run_webcam
 
 # ======= Defaults you can tweak =======
-MODEL_PATH = 'models/fer2013/cnn_small/best.pt'  # path to the trained model
+MODEL_PATH = 'models/best.pt'  # path to the trained model
 CASCADE_PATH = 'assets/haarcascade_frontalface_default.xml'
 DEVICE = 'cpu'  # 'cpu' or 'cuda'
 USE_CLAHE = True  # preprocessing

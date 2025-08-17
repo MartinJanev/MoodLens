@@ -36,7 +36,6 @@ CSV_CANDIDATES = [
 CKPT_CANDIDATES = [
     os.path.join(PROJECT_ROOT, "models", "best.pt"),
     os.path.join(PROJECT_ROOT, "checkpoints", "best.pt"),
-    os.path.join(PROJECT_ROOT, "models", "fer2013", "cnn_small", "best.pt"),
 ]
 
 BATCH_SIZE = 256
