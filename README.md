@@ -2,9 +2,13 @@
 
 ![Banner](assets/pic.png)
 
-A clean, modular PyTorch project for **facial emotion recognition**. It trains a compact CNN on **FER2013** and runs *
-*real‑time** webcam inference with OpenCV (Haar cascades). The codebase is split into focused modules (data, models,
-training, detection, realtime UI) to make it easy to read and modify.
+A clean, modular PyTorch project for Facial emotion recognition. 
+
+It trains a compact convolutional neural network (CNN) on the FER2013 dataset, which contains thousands of labeled facial images across seven emotion classes. 
+
+After training, the model can perform real‑time emotion recognition using your webcam. For this, it leverages OpenCV’s Haar cascade face detector to locate faces in the video stream, then classifies the detected faces using the trained CNN.  
+
+The codebase is organized into focused modules for data handling, model definition, training routines, face detection, and a real-time user interface. This modular structure makes the project easy to understand, extend, and adapt for new experiments or datasets.
 
 ---
 
