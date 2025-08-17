@@ -14,8 +14,7 @@ training, detection, realtime UI) to make it easy to read and modify.
 - [Dataset](#dataset)
 - [Prepare splits](#prepare-splits)
 - [Training](#training)
-- [Evaluate on test split](#evaluate-on-test-split)
-- [Run real‑time webcam demo](#run-real-time-webcam-demo)
+- [Run real‑time webcam demo](#Webcam-demo)
 - [Configuration reference](#configuration-reference)
 - [Model architecture](#model-architecture)
 - [Performance & timing](#performance--timing)
@@ -193,7 +192,7 @@ It contains `state["model"]` and `state["classes"]`. You can change the output d
 
 ---
 
-## Run real‑time webcam demo
+## Webcam demo
 
 1. Make sure you have a trained model at `models/fer2013/cnn_small/best.pt` (or adjust the path below).
 2. Download `haarcascade_frontalface_default.xml` and place it in `assets/` (or point to OpenCV’s built‑in path).
@@ -201,16 +200,16 @@ It contains `state["model"]` and `state["classes"]`. You can change the output d
 Run:
 
 ```bash
-python -m src.scripts.infer_webcam
+python -m src.realtime.run_webcam
 # or
-python src/scripts/run_webcam.py
+python src/realtime/run_webcam.py
 ```
 
 **Tips**
 
 - Press `Esc` or `q` to quit.
 - On some machines, CPU inference gives lower latency than GPU for webcam use. You can switch device inside
-  `infer_webcam.py`.
+  `realtime/run_webcam.py`
 
 ---
 
@@ -233,7 +232,7 @@ python src/scripts/run_webcam.py
 
 ### Inference (webcam)
 
-- `MODEL_PATH` — defaults to `checkpoints/best.pt`
+- `MODEL_PATH` — defaults to `model/best.pt`
 - `CASCADE_PATH` — path to Haar cascade XML
 - `DEVICE` — `"cpu"` or `"cuda"`
 - `USE_CLAHE` — apply CLAHE preprocessing
@@ -263,9 +262,9 @@ This design aims to be small, fast, and robust on FER2013.
 Curious how long training might take on your machine? Use the micro‑benchmark:
 
 ```bash
-python -m src.scripts.eta_probe
+python -m src.train.eta_probe
 # or
-python src/scripts/eta_probe.py
+python src/train/eta_probe.py
 ```
 
 It warms up, times a few train/val steps, and prints an estimated **time per epoch** and **total** for your configured
@@ -275,7 +274,7 @@ number of epochs.
 
 ## Troubleshooting
 
-- **Relative import errors (Windows):** Prefer `python -m src.scripts.train` instead of `python src/scripts/train.py` so
+- **Relative import errors (Windows):** Prefer `python -m src.train.train` instead of `python src/train/train.py` so
   Python treats `src/` as a package root.
 - **Camera won’t open:** Ensure another app isn’t using it. Try `CAMERA_INDEX = 0/1`. Some USB cameras map to different
   indices.
@@ -284,26 +283,9 @@ number of epochs.
 - **CUDA out of memory / slow dataloader:** Reduce `BATCH_SIZE`. On CPU, start with 128–256; on 16GB RAM, 256 is safe
   for FER2013.
 - **Progress bars not showing:** `tqdm` is optional. If not installed, the code falls back to plain prints.
-
+- **Training diverges:** Lower the learning rate. Start at `1e-3` with Adam; if it diverges, try `3e-4`. If too slow,
+  try `2e-3` with caution.
+- **Model not saving:** Check `OUT_DIR` in `train.py`. If it’s not writable, change it to a valid path.
+- **Webcam inference slow:** If using GPU, try CPU instead. For some laptops, CPU inference can be faster due to
+  lower overhead. Set `DEVICE = "cpu"` in `run_webcam.py`.
 ---
-
-## FAQ
-
-**What do batch size, activation, and learning rate change?**
-
-- **Batch size**: Larger batches give smoother gradient estimates but need more RAM. Too large can over‑smooth; too
-  small can be noisy. Tune for throughput + stability.
-- **Activation (ELU here)**: Helps gradients flow and is robust on small CNNs with batch norm for 48×48 grayscale. You
-  could try ReLU/Mish/GELU, but ELU works well out‑of‑the‑box.
-- **Learning rate**: Primary knob for convergence. Start at `1e-3` with Adam. If training diverges, lower to `3e-4`. If
-  it’s too slow, try `2e-3` (with care).
-
-**Where’s `drop_last`?**  
-The `DataLoader` doesn’t set `drop_last`, so it defaults to **False**, meaning the final (possibly smaller) batch is
-still used. This is fine for both training and validation on FER‑style data.
-
----
-
-## License
-
-MIT
