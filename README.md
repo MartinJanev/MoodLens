@@ -1,5 +1,7 @@
 # Emotion Vision — FER2013 → Real‑time Webcam
 
+![Banner](assets/pic.png)
+
 A clean, modular PyTorch project for **facial emotion recognition**. It trains a compact CNN on **FER2013** and runs *
 *real‑time** webcam inference with OpenCV (Haar cascades). The codebase is split into focused modules (data, models,
 training, detection, realtime UI) to make it easy to read and modify.
@@ -18,9 +20,7 @@ training, detection, realtime UI) to make it easy to read and modify.
 - [Configuration reference](#configuration-reference)
 - [Model architecture](#model-architecture)
 - [Performance & timing](#performance--timing)
-- [Troubleshooting](#troubleshooting)
-- [FAQ](#faq)
-- [License](#license)
+
 
 ---
 
@@ -269,23 +269,3 @@ python src/train/eta_probe.py
 
 It warms up, times a few train/val steps, and prints an estimated **time per epoch** and **total** for your configured
 number of epochs.
-
----
-
-## Troubleshooting
-
-- **Relative import errors (Windows):** Prefer `python -m src.train.train` instead of `python src/train/train.py` so
-  Python treats `src/` as a package root.
-- **Camera won’t open:** Ensure another app isn’t using it. Try `CAMERA_INDEX = 0/1`. Some USB cameras map to different
-  indices.
-- **Haar cascade missing:** Install OpenCV and use its built‑in cascades, or download the XML and set `CASCADE_PATH`
-  accordingly.
-- **CUDA out of memory / slow dataloader:** Reduce `BATCH_SIZE`. On CPU, start with 128–256; on 16GB RAM, 256 is safe
-  for FER2013.
-- **Progress bars not showing:** `tqdm` is optional. If not installed, the code falls back to plain prints.
-- **Training diverges:** Lower the learning rate. Start at `1e-3` with Adam; if it diverges, try `3e-4`. If too slow,
-  try `2e-3` with caution.
-- **Model not saving:** Check `OUT_DIR` in `train.py`. If it’s not writable, change it to a valid path.
-- **Webcam inference slow:** If using GPU, try CPU instead. For some laptops, CPU inference can be faster due to
-  lower overhead. Set `DEVICE = "cpu"` in `run_webcam.py`.
----
