@@ -1,0 +1,14 @@
+[project]
+name = "emotion-vision"
+version = "0.1.0"
+description = "Modular FER2013 emotion recognition and real-time webcam inference"
+authors = [{name="You"}]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
