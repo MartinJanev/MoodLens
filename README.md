@@ -1,4 +1,4 @@
-# Emotion Vision — FER2013 → Real‑time Webcam
+# MoodLens
 
 ![Banner](assets/pic.png)
 
