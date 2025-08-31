@@ -1,3 +1,9 @@
+# Estimate training time for a model on CPU or GPU.
+# Adjust batch size and number of workers as needed.
+
+# We use this module to estimate training time for a model on CPU or GPU.
+# Sometimes the training time can be long, and this helps to get a rough idea of how long it might take.
+
 import os, sys, time, math, torch
 from torch.utils.data import DataLoader
 
@@ -5,9 +11,12 @@ HERE = os.path.dirname(__file__)
 SRC_ROOT = os.path.abspath(os.path.join(HERE, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if SRC_ROOT not in sys.path: sys.path.insert(0, SRC_ROOT)
+
+
 from src.data.fer2013 import FER2013Class, DEFAULT_CLASSES
 from src.models.factory import create_model
 from src.utils.time_measure import measure_time as format_time
+
 
 TRAIN_CSV = os.path.join(PROJECT_ROOT, "datasets", "train.csv")
 VAL_CSV = os.path.join(PROJECT_ROOT, "datasets", "val.csv")
@@ -15,7 +24,7 @@ MODEL_NAME = "cnn_small"
 BATCH_SIZE = 128  # try 128–512 on CPU; adjust if RAM-bound - e.g. for 16GB RAM, use 64 or 128
 NUM_WORKERS = 8
 EPOCHS_TARGET = 30
-DEVICE = "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # "cpu" or "cuda"
 USE_CLAHE = True
 WARMUP_STEPS_TRAIN = 10
 MEASURE_STEPS_TRAIN = 50
