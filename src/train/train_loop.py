@@ -167,7 +167,7 @@ def run_training(cfg: TrainConfig) -> Tuple[float, float]:
     # Output dirs/paths
     model_dir = os.path.join(cfg.out_dir, cfg.model_name)
     ensure_dir(model_dir)
-    ckpt_path = os.path.join(model_dir, "best.pt")
+    ckpt_path = os.path.join(model_dir, "best_17-08.pt")
     metrics_csv = os.path.join(model_dir, "metrics.csv")
     curves_png = os.path.join(model_dir, "curves.png")
     summary_txt = os.path.join(model_dir, "summary.txt")
