@@ -25,4 +25,3 @@ pip-wheel-metadata/
 
 datasets/
 src/data/fer2013.csv
-src/test/media
