@@ -17,18 +17,15 @@ def activation(act: str = "silu"):
 
 class ConvBNAct(nn.Module):
     """
-    A simple Conv2D + BatchNorm2d + Activation block.
-
+    A simple Conv2d + BatchNorm2d + Activation block.
     This is a common pattern in CNNs to normalize the output of convolutional layers
     and apply a non-linear activation function.
-
     :param c_in: Number of input channels.
     :param c_out: Number of output channels.
     :param k: Kernel size for the convolution (default is 3).
     :param s: Stride for the convolution (default is 1).
     :param p: Padding for the convolution (default is 1).
     :param act: Activation function to use (default is "silu").
-
     Supported activations are "relu", "elu", and "silu". If an unsupported
     activation is provided, it defaults to SiLU.
     :return: A callable module that applies the convolution, batch normalization,

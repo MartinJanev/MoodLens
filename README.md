@@ -2,16 +2,19 @@
 
 ![Banner](assets/pic.png)
 
-MoodLens is a small computer vision and deep learning project for facial emotion recognition. It detects faces in video streams or images using Haar Cascades and describes their emotion using a compact CNN.
+A clean, modular PyTorch project for Facial emotion recognition. 
 
-This project is designed for educational use and modular experimentation. The app comes with a preloaded and trained model, but you can also train your own using the FER2013 dataset. 
+It trains a compact convolutional neural network (CNN) on the FER2013 dataset, which contains thousands of labeled facial images across seven emotion classes. 
 
-The codebase is organized into focused modules for data handling, model definition, training routines, face detection, and a real-time user interface.
+After training, the model can perform real‑time emotion recognition using your webcam. For this, it leverages OpenCV’s Haar cascade face detector to locate faces in the video stream, then classifies the detected faces using the trained CNN.  
+
+The codebase is organized into focused modules for data handling, model definition, training routines, face detection, and a real-time user interface. This modular structure makes the project easy to understand, extend, and adapt for new experiments or datasets.
 
 ---
 
 ## Table of contents
 
+- [Features](#features)
 - [Project structure](#project-structure)
 - [Setup](#setup)
 - [Dataset](#dataset)
@@ -23,6 +26,19 @@ The codebase is organized into focused modules for data handling, model definiti
 - [Performance & timing](#performance--timing)
 
 
+---
+
+## Features
+
+- **Simple training loop** with class‑imbalance weighting, optional early stopping, tqdm progress bars.
+- **Fast data pipeline** for CPU or CUDA with `num_workers`, `prefetch_factor`, and optional channels‑last memory
+  format.
+- **Compact CNN** tailored for 48×48 grayscale FER with light SE‑style channel attention.
+- **Realtime inference** from your laptop camera using OpenCV’s Haar face detector.
+- **Single-source preprocessing** so training and inference stay consistent (CLAHE + normalization).
+- Batteries‑included micro‑benchmark to **estimate training time per epoch** on your machine.
+
+---
 
 ## Project structure
 
@@ -52,22 +68,21 @@ emotion_vision/
 │   │
 │   ├── realtime/
 │   │   ├── app.py                 # webcam loop (display boxes + labels)
-│   │   ├── HaarDetector.py          # HaarFaceDetector wrapper
+│   │   ├── face_class.py          # HaarFaceDetector wrapper
 │   │   └── run_webcam.py          # run_webcam(model, cascade, ...)
 │   │
 │   ├── train/
 │   │   ├── train_loop.py          # TrainConfig + train_model(...)
-│   │   ├── train_config.py        # default config values
-│   │   ├── config.py              # global constants (classes, img size)
+│   │   ├── metrics.py             # accuracy, confusion matrix, etc.
 │   │   ├── train.py               # entrypoint script (no argparse, tweak defaults inside)
-│   │   └── estimate_train.py      # measure epoch time/estimate total
-│   │
+│   │   └── eta_probe.py           # measure epoch time/estimate total
 │   ├── test/
 │   │   └── test.py                # evaluate model on test split
 │   │
 │   └── utils/
 │       ├── io.py                  # helper for saving/loading
 │       ├── seed.py                # fix_seed()
+│       ├── viz.py                 # plotting (loss/acc curves)
 │       └── time_measure.py        # timing utilities
 │
 ├── pyproject.toml                 # optional (project metadata)
@@ -174,27 +189,10 @@ python src/train/train.py
 The best checkpoint is written to:
 
 ```
-models/best.pt
+models/fer2013/cnn_small/best.pt
 ```
 
 It contains `state["model"]` and `state["classes"]`. You can change the output directory via `OUT_DIR` in `train.py`.
-
----
-
-## Testing
-
-Evaluate the trained model on the test split:
-
-```bash
-python -m src.test.eval_test
-
-# or
-
-python src/test/test.py
-```
-
-It loads the best checkpoint from `models/best.pt` by default. Adjust the path in `test.py` if needed.
-It uses the Public test split (`datasets/test_public.csv`).
 
 ---
 
@@ -270,7 +268,7 @@ Curious how long training might take on your machine? Use the micro‑benchmark:
 ```bash
 python -m src.train.eta_probe
 # or
-python src/train/estimate_train.py
+python src/train/eta_probe.py
 ```
 
 It warms up, times a few train/val steps, and prints an estimated **time per epoch** and **total** for your configured
