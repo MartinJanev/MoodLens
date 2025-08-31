@@ -33,7 +33,7 @@ import cv2, numpy as np, torch.nn.functional as F
 # Prefer the full test set; change to "test_private.csv" if you want
 TEST_CSV = os.path.join(PROJECT_ROOT, "datasets", "test_private.csv")  # User can change this path
 
-CKPT = os.path.join(PROJECT_ROOT, "models", "best_17-08.pt")  # User can change this path
+CKPT = os.path.join(PROJECT_ROOT, "models", "best.pt")  # User can change this path
 
 BATCH_SIZE = 256
 NUM_WORKERS = 0  # safe default on Windows; raise to 2–8 on Linux/mac if you like
@@ -80,7 +80,7 @@ if TEST_CSV is None:
 if CKPT is None:
     raise FileNotFoundError(
         "Could not find checkpoint. Expected one of: \n"
-        "  - models/best_17-08.pt\n  - checkpoints/best_17-08.pt\n  - models/fer2013/cnn_small/best_17-08.pt"
+        "  - models/best.pt\n  - checkpoints/best.pt\n  - models/fer2013/cnn_small/best.pt"
     )
 
 

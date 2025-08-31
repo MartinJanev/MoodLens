@@ -64,7 +64,7 @@ class FER2013Class(Dataset):
     def _preprocess_gray(self, gray: np.ndarray) -> np.ndarray:
         """
         Preprocess the grayscale image:
-        - If use_clahe is True, apply CLAHE.
+        - If the use_clahe is True, apply CLAHE.
         - Normalize to [0, 1] by dividing by 255.0.
         Expects gray to be a 2D numpy array of float32.
         Returns a 2D numpy array of float32 in [0, 1].
