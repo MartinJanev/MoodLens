@@ -24,7 +24,8 @@ OUT_DIR = os.path.join(PROJECT_ROOT, "datasets")
 VAL_RATIO = 0.10
 SEED = 1337
 
-if __name__ == "__main__":
+
+def main():
     try:
         df = pd.read_csv(
             CSV_PATH,
@@ -74,3 +75,7 @@ if __name__ == "__main__":
     test_pub.to_csv(os.path.join(OUT_DIR, "test_public.csv"), index=False)
     test_pri.to_csv(os.path.join(OUT_DIR, "test_private.csv"), index=False)
     print(f"[prepare] Wrote: train.csv, val.csv, test_public.csv, test_private.csv → {OUT_DIR}")
+
+
+if __name__ == '__main__':
+    main()

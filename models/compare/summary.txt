@@ -1,2 +1,0 @@
-Best cnn_small: val_loss=1.0425, val_acc=0.5981
-Best resnet18: val_loss=1.0098, val_acc=0.6358

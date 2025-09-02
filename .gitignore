@@ -25,3 +25,7 @@ pip-wheel-metadata/
 
 datasets/
 src/data/fer2013.csv
+models_123/
+models_109/
+models/
+models_compare/

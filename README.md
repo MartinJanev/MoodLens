@@ -2,13 +2,18 @@
 
 ![Banner](assets/pic.png)
 
-A clean, modular PyTorch project for Facial emotion recognition. 
+A clean, modular PyTorch project for Facial emotion recognition.
 
-It trains a compact convolutional neural network (CNN) on the FER2013 dataset, which contains thousands of labeled facial images across seven emotion classes. 
+It trains a compact convolutional neural network (CNN) on the FER2013 dataset, which contains thousands of labeled
+facial images across seven emotion classes.
 
-After training, the model can perform real‑time emotion recognition using your webcam. For this, it leverages OpenCV’s Haar cascade face detector to locate faces in the video stream, then classifies the detected faces using the trained CNN.  
+After training, the model can perform real‑time emotion recognition using your webcam. For this, it leverages OpenCV’s
+Haar cascade face detector to locate faces in the video stream, then classifies the detected faces using the trained
+CNN.
 
-The codebase is organized into focused modules for data handling, model definition, training routines, face detection, and a real-time user interface. This modular structure makes the project easy to understand, extend, and adapt for new experiments or datasets.
+The codebase is organized into focused modules for data handling, model definition, training routines, face detection,
+and a real-time user interface. This modular structure makes the project easy to understand, extend, and adapt for new
+experiments or datasets.
 
 ---
 
@@ -24,7 +29,6 @@ The codebase is organized into focused modules for data handling, model definiti
 - [Configuration reference](#configuration-reference)
 - [Model architecture](#model-architecture)
 - [Performance & timing](#performance--timing)
-
 
 ---
 
@@ -64,19 +68,24 @@ emotion_vision/
 │   │
 │   ├── models/
 │   │   ├── CNN_class.py           # compact CNN (activation configurable, ELU default + SE)
+│   │   ├── ResNetClass.py         # ResNet18 pretrained model import
 │   │   └── factory.py             # create_model(name, **kwargs)
 │   │
 │   ├── realtime/
 │   │   ├── app.py                 # webcam loop (display boxes + labels)
-│   │   ├── face_class.py          # HaarFaceDetector wrapper
+│   │   ├── HaarDetector.py        # HaarFaceDetector wrapper
 │   │   └── run_webcam.py          # run_webcam(model, cascade, ...)
 │   │
 │   ├── train/
-│   │   ├── train_loop.py          # TrainConfig + train_model(...)
-│   │   ├── metrics.py             # accuracy, confusion matrix, etc.
+│   │   ├── TrainConfig.py           # TrainConfig dataclass
+│   │   ├── train_loop.py          # run_training loop
+│   │   ├── train_config.py        # overriders for TrainConfig - CNN or ResNet18
 │   │   ├── train.py               # entrypoint script (no argparse, tweak defaults inside)
 │   │   └── eta_probe.py           # measure epoch time/estimate total
+│   │
 │   ├── test/
+│   │   ├── media/
+│   │   │   └── *.png              # sample images for quick test
 │   │   └── test.py                # evaluate model on test split
 │   │
 │   └── utils/
@@ -97,8 +106,6 @@ emotion_vision/
 ## Setup
 
 - **Python**: 3.9+
-- **OS**: Windows / macOS / Linux
-- **GPU**: Optional (project runs fine on CPU).
 
 Create and activate a virtual environment:
 
@@ -137,7 +144,7 @@ After downloading, place it in:
 src/data/fer2013.csv
 ```
 
-FYI, the dataset uses the standard 7 classes in this order:
+The dataset uses the standard 7 classes in this order:
 
 ```
 Anger, Disgust, Fear, Happy, Sad, Surprise, Neutral
@@ -147,73 +154,68 @@ Anger, Disgust, Fear, Happy, Sad, Surprise, Neutral
 
 ## Prepare splits
 
-Generate **train**, **val**, and **test** CSVs (no images extracted; still CSV‑based):
+Generate `train`, `val`, and `test` CSVs (no images extracted; stays CSV-based).
+
+**Recommended (stable imports):**
 
 ```bash
-# Run as a module (recommended to avoid import issues):
 python -m src.data.prepare_fer2013
+```
 
-# or, if you prefer direct:
+Or run directly from the project root (where src/ lives):
+
+```bash
 python src/data/prepare_fer2013.py
 ```
 
-But for the latter, ensure you run it from the project root directory (where `src/` is located) to avoid import errors
-and don`t include __init__.py files directories.
-
-The script reads `src/data/fer2013.csv` and writes:
-
-```
+Reads: src/data/fer2013.csv and saves:
+```bash
 datasets/train.csv
 datasets/val.csv
 datasets/test_public.csv
 datasets/test_private.csv
 ```
+A fixed seed is used to carve 10% of the original training split into validation.
 
-A 10% validation split is carved from the original training partition with a fixed seed for reproducibility.
+If running directly, execute from the project root to avoid import issues, and don’t add __init__.py to data folders you
+want treated as plain directories.
+
 
 ---
 
 ## Training
 
-Open `src/train/train.py` to tweak the defaults (epochs, batch size, workers, etc.), then run:
+Edit defaults in src/train/train.py (epochs, batch size, workers, LR, OUT_DIR, MODEL_NAME), then run:
 
 ```bash
-# Safer (packages imports correctly)
 python -m src.train.train
-
-# or direct
+# or
 python src/train/train.py
 ```
+- Loads datasets/train.csv and datasets/val.csv, builds dataloaders, creates the model (cnn_small = EmotionCNN, or
+resnet18), trains with early stopping.
 
-**What gets saved?**  
-The best checkpoint is written to:
+Saves the best checkpoint to:
 
+```bash
+models/fer2013/<model>/best.pt
 ```
-models/fer2013/cnn_small/best.pt
-```
-
-It contains `state["model"]` and `state["classes"]`. You can change the output directory via `OUT_DIR` in `train.py`.
-
----
+(Contains state["model"] and state["classes"].)
 
 ## Webcam demo
 
-1. Make sure you have a trained model at `models/fer2013/cnn_small/best.pt` (or adjust the path below).
-2. Download `haarcascade_frontalface_default.xml` and place it in `assets/` (or point to OpenCV’s built‑in path).
+Prereqs
 
-Run:
+- Trained checkpoint (e.g., models/fer2013/cnn_small/best.pt)
+- assets/haarcascade_frontalface_default.xml (or use OpenCV’s built-in path)
 
+Run
 ```bash
 python -m src.realtime.run_webcam
 # or
 python src/realtime/run_webcam.py
 ```
-
-**Tips**
-
-- Press `Esc` or `q` to quit.
-- On some machines, CPU inference gives lower latency than GPU for webcam use. You can switch device inside
-  `realtime/run_webcam.py`
+- Opens webcam, detects faces (Haar), preprocesses to 48×48 grayscale, runs the loaded model, and overlays the top emotion + confidence. Press Q to quit.
 
 ---
 

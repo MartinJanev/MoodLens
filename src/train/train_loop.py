@@ -12,7 +12,7 @@ from ..utils.time_measure import measure_time as format_time
 from ..utils.seed import fix_seed
 from ..data.fer2013 import FER2013Class, DEFAULT_CLASSES
 from ..models.factory import create_model
-from .config import TrainConfig
+from .TrainConfig import TrainConfig
 
 try:
     from tqdm.auto import tqdm
@@ -98,6 +98,128 @@ def _freeze_resnet_backbone(m: torch.nn.Module, freeze: bool):
             p.requires_grad = not freeze
 
 
+def _plot_compare_models(out_root: str,
+                         out_name_train: str = "curves_all_train.png",
+                         out_name_val: str = "curves_all_val.png") -> None:
+    """
+    Scan models/* for metrics (prefers metrics.csv, falls back to summary.csv),
+    and draw two figures:
+      - Train figure: Loss vs Epoch + Accuracy vs Epoch (train_* for every model)
+      - Val   figure: Loss vs Epoch + Accuracy vs Epoch (val_*   for every model)
+    Outputs:
+      <out_root>/compare/<out_name_train>
+      <out_root>/compare/<out_name_val>
+    """
+    import os, glob
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    def _load_metrics_any(model_dir: str):
+        """Return (df, model_name) or (None, None)."""
+        for fname in ("metrics.csv", "summary.csv"):
+            path = os.path.join(model_dir, fname)
+            if os.path.exists(path):
+                try:
+                    df = pd.read_csv(path)
+                except Exception:
+                    continue
+                cols = [c for c in ("epoch", "train_loss", "train_acc", "val_loss", "val_acc") if c in df.columns]
+                if "epoch" not in cols:
+                    continue
+                df = (df[cols]
+                      .dropna(subset=["epoch"])
+                      .sort_values("epoch")
+                      .drop_duplicates("epoch", keep="last"))
+                return df, os.path.basename(model_dir)
+        return None, None
+
+    # Gather
+    model_dirs = [d for d in glob.glob(os.path.join(out_root, "*")) if os.path.isdir(d)]
+    loaded = []
+    for d in sorted(model_dirs):
+        df, name = _load_metrics_any(d)
+        if df is not None:
+            loaded.append((name, df))
+
+    if not loaded:
+        print(f"[plot] No metrics/summary CSVs found under {out_root}/*")
+        return
+
+    comp_dir = os.path.join(out_root, "compare")
+    ensure_dir(comp_dir)
+
+    def _plot_group(kind: str, out_png: str):
+        """
+        kind: 'train' or 'val'
+        Plots two subplots: Loss vs Epoch (left), Acc vs Epoch (right)
+        """
+        fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(14, 6))
+        color_cycle = plt.rcParams["axes.prop_cycle"].by_key().get("color", None)
+
+        any_line = False
+        for idx, (name, df) in enumerate(loaded):
+            color = None if color_cycle is None else color_cycle[idx % len(color_cycle)]
+            ep = df["epoch"]
+
+            if kind == "train":
+                if "train_loss" in df.columns:
+                    ax_l.plot(ep, df["train_loss"], label=f"{name} loss", color=color, linewidth=1.8)
+                    any_line = True
+                if "train_acc" in df.columns:
+                    ax_r.plot(ep, df["train_acc"], label=f"{name} acc", color=color, linewidth=1.8, linestyle="--")
+                    any_line = True
+                title_suffix = "Train"
+            else:
+                if "val_loss" in df.columns:
+                    ax_l.plot(ep, df["val_loss"], label=f"{name} loss", color=color, linewidth=1.8)
+                    any_line = True
+                if "val_acc" in df.columns:
+                    ax_r.plot(ep, df["val_acc"], label=f"{name} acc", color=color, linewidth=1.8, linestyle="--")
+                    any_line = True
+                title_suffix = "Validation"
+
+        # Titles / labels
+        ax_l.set_title(f"{title_suffix} Loss vs Epoch")
+        ax_l.set_xlabel("epoch");
+        ax_l.set_ylabel("loss");
+        ax_l.grid(True, alpha=0.25)
+        ax_r.set_title(f"{title_suffix} Accuracy vs Epoch")
+        ax_r.set_xlabel("epoch");
+        ax_r.set_ylabel("accuracy");
+        ax_r.grid(True, alpha=0.25)
+
+        # Single bottom legend (wide, outside the plot)
+        handles, labels = [], []
+        for ax in (ax_l, ax_r):
+            h, l = ax.get_legend_handles_labels()
+            handles.extend(h);
+            labels.extend(l)
+        # de-dup while preserving order
+        seen = set()
+        uniq = [(h, l) for h, l in zip(handles, labels) if not (l in seen or seen.add(l))]
+
+        # leave generous bottom margin for legend
+        fig.subplots_adjust(bottom=0.28)
+        if uniq:
+            # columns: up to 6, or all if fewer
+            ncol = min(6, max(3, len(uniq)))
+            fig.legend([h for h, _ in uniq], [l for _, l in uniq],
+                       loc="lower center", ncol=ncol, fontsize=10,
+                       bbox_to_anchor=(0.5, -0.02))
+
+        fig.tight_layout(rect=[0, 0.08, 1, 1])
+        fig.savefig(out_png, dpi=160, bbox_inches="tight")
+        plt.close(fig)
+        if any_line:
+            print(f"[plot] Saved: {out_png}")
+        else:
+            print(f"[plot] Skipped (no '{kind}' curves found)")
+
+    # Write both files
+    _plot_group("train", os.path.join(comp_dir, out_name_train))
+    _plot_group("val", os.path.join(comp_dir, out_name_val))
+
+
 # ---------- Public entry ----------
 def run_training(cfg: TrainConfig) -> Tuple[float, float]:
     fix_seed(cfg.seed)
@@ -167,7 +289,7 @@ def run_training(cfg: TrainConfig) -> Tuple[float, float]:
     # Output dirs/paths
     model_dir = os.path.join(cfg.out_dir, cfg.model_name)
     ensure_dir(model_dir)
-    ckpt_path = os.path.join(model_dir, "best_17-08.pt")
+    ckpt_path = os.path.join(model_dir, "model_resnet.pt" if is_resnet else "model_cnn.pt")
     metrics_csv = os.path.join(model_dir, "metrics.csv")
     curves_png = os.path.join(model_dir, "curves.png")
     summary_txt = os.path.join(model_dir, "summary.txt")
@@ -269,7 +391,6 @@ def run_training(cfg: TrainConfig) -> Tuple[float, float]:
                 f"Epoch {epoch:02d}/{cfg.epochs} | "
                 f"train {train_loss:.4f}/{train_acc:.3f} | "
                 f"val {val_loss:.4f}/{val_acc:.3f} | "
-                f"lr {_get_lr(opt):.1f} | "
                 f"time {format_time(elapsed)} | ETA {format_time(eta)}"
             )
 
@@ -312,7 +433,7 @@ def run_training(cfg: TrainConfig) -> Tuple[float, float]:
                 )
             else:
                 bad_epochs += 1
-                if bad_epochs >= cfg.early_stop_patience:
+                if cfg.use_early_stopping and bad_epochs >= cfg.early_stop_patience:
                     print(f"Early stopping at epoch {epoch}.")
                     break
 
@@ -334,4 +455,13 @@ def run_training(cfg: TrainConfig) -> Tuple[float, float]:
     print("Metrics:", metrics_csv)
     print("Curves:", curves_png)
     print("Summary:", summary_txt)
+
+    plot_out = cfg.out_dir + "/compare"
+    try:
+        _plot_compare_models(plot_out,
+                             out_name_train="curves_all_train.png",
+                             out_name_val="curves_all_val.png")
+    except Exception as e:
+        print(f"[plot] All-models curves failed: {e}")
+
     return float(best_acc), float("nan")
