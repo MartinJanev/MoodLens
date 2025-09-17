@@ -1,0 +1,9 @@
+class,size,accuracy
+Anger,491,60.49
+Disgust,55,63.64
+Fear,528,52.84
+Happy,879,82.37
+Sad,594,38.05
+Surprise,416,73.56
+Neutral,626,60.7
+Overall,3589,62.61

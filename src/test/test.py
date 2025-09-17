@@ -1,5 +1,5 @@
 # src/test/test.py
-import os, sys, time, csv, math, glob
+import os, sys, time, csv, glob
 from typing import List, Tuple, Dict
 import torch
 import numpy as np
@@ -7,7 +7,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from contextlib import nullcontext
 import matplotlib.pyplot as plt
-import cv2  # NEW: for image I/O + drawing
 
 # --------- Path bootstrap so "src.*" works when run as a module or file ---------
 HERE = os.path.dirname(__file__)
@@ -29,26 +28,19 @@ except Exception:
     tqdm = None  # progress bar optional
 
 # --------- Config (no argparse) ---------
+# switch this to "public_test.csv" if you want that split
 TEST_CSV = os.path.join(PROJECT_ROOT, "datasets", "test_private.csv")
+SPLIT_NAME = os.path.splitext(os.path.basename(TEST_CSV))[0]
 MODELS_ROOT = os.path.join(PROJECT_ROOT, "models")
 OUT_CMP_DIR = os.path.join(MODELS_ROOT, "test_results")
 os.makedirs(OUT_CMP_DIR, exist_ok=True)
-
-# Image smoke-test I/O
-MEDIA_DIRS = [
-    os.path.join(PROJECT_ROOT, "test", "media"),  # preferred
-    os.path.join(HERE, "media"),                  # fallback: src/test/media
-]
-OUT_IMG_DIR = os.path.join(PROJECT_ROOT, "test", "output")
-os.makedirs(OUT_IMG_DIR, exist_ok=True)
-CASCADE_PATH = os.path.join(PROJECT_ROOT, "assets", "haarcascade_frontalface_default.xml")
 
 BATCH_SIZE = 256
 NUM_WORKERS = 0  # safe default on Windows; try 2-4 on Linux/mac
 USE_CLAHE = True
 USE_CACHE = True
 
-# --------- Device selection (CUDA -> DirectML -> CPU) ---------
+# --------- Device selection (CUDA -> CPU) ---------
 def pick_device():
     if torch.cuda.is_available():
         try:
@@ -72,50 +64,6 @@ def _to_resnet_input(x: torch.Tensor, size: int) -> torch.Tensor:
     x = F.interpolate(x, size=(size, size), mode="bilinear", align_corners=False)
     x = x.repeat(1, 3, 1, 1)
     return (x - _IMAGENET_MEAN.to(x.device)) / _IMAGENET_STD.to(x.device)
-
-# --- Single-face preprocessors for image smoke test ---
-def _preprocess_face_48(gray_or_bgr, use_clahe=True):
-    if gray_or_bgr.ndim == 3:
-        gray = cv2.cvtColor(gray_or_bgr, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = gray_or_bgr
-    gray = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
-    if use_clahe:
-        gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-    arr = (gray.astype("float32") / 255.0)[None, None, :, :]  # [1,1,48,48]
-    return torch.from_numpy(arr)
-
-def _preprocess_face_resnet(gray_or_bgr, size=160, use_clahe=True):
-    if gray_or_bgr.ndim == 3:
-        gray = cv2.cvtColor(gray_or_bgr, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = gray_or_bgr
-    gray = cv2.resize(gray, (size, size), interpolation=cv2.INTER_AREA)
-    if use_clahe:
-        gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-    arr = (gray.astype("float32") / 255.0)
-    g3 = np.repeat(arr[None, :, :], 3, axis=0)  # (3, H, W)
-    t = torch.from_numpy(g3).unsqueeze(0)       # (1, 3, H, W)
-    t = (t - _IMAGENET_MEAN) / _IMAGENET_STD
-    return t
-
-# --- Simple Haar helpers (for optional face box) ---
-def _load_cascade():
-    if os.path.exists(CASCADE_PATH):
-        c = cv2.CascadeClassifier(CASCADE_PATH)
-        if not c.empty():
-            return c
-    return None
-
-def _detect_biggest_face(gray, cascade):
-    if cascade is None:
-        return None
-    faces = cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, flags=cv2.CASCADE_SCALE_IMAGE)
-    if len(faces) == 0:
-        return None
-    # biggest by area
-    x, y, w, h = max(faces, key=lambda b: b[2] * b[3])
-    return (x, y, w, h)
 
 # ---------- utils ----------
 def _looks_like_resnet(state_keys) -> bool:
@@ -194,88 +142,9 @@ def _evaluate_model_on_loader(model: torch.nn.Module, loader: DataLoader, device
     per_cls = {c: (int(per_cls_correct[c]), int(per_cls_total[c])) for c in range(num_classes)}
     return overall_acc, per_cls
 
-# -------------- save overlays for pictures --------------
-def _save_picture_overlays(model, classes, device, is_resnet=False, resnet_input_size=160, limit=None) -> int:
-    """
-    Reads images from test/media (or src/test/media fallback), draws face box + predicted label,
-    and saves to test/output/. Returns number of files written.
-    """
-    # pick first existing media dir
-    media_dir = next((d for d in MEDIA_DIRS if os.path.isdir(d)), None)
-    if media_dir is None:
-        print(f"[eval][img] No media folder found. Create one of: {MEDIA_DIRS}")
-        return 0
-
-    names = [f for f in os.listdir(media_dir) if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp"))]
-    if not names:
-        print(f"[eval][img] No images in {media_dir}.")
-        return 0
-    names.sort()
-    if limit is not None:
-        names = names[: int(limit)]
-
-    cascade = _load_cascade()
-    model.eval().to(device)
-    written = 0
-
-    for nm in names:
-        path = os.path.join(media_dir, nm)
-        frame = cv2.imread(path)
-        if frame is None:
-            print(f"[eval][img] Unreadable: {nm}")
-            continue
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        box = _detect_biggest_face(gray, cascade)
-
-        # If no face, use centered square crop (still produce a prediction)
-        if box is None:
-            h, w = gray.shape[:2]
-            s = min(h, w)
-            cy, cx = h // 2, w // 2
-            y0 = max(0, cy - s // 2); x0 = max(0, cx - s // 2)
-            crop = frame[y0:y0+s, x0:x0+s]
-            bbox = (x0, y0, s, s)
-        else:
-            x, y, w, h = box
-            crop = frame[y:y+h, x:x+w]
-            bbox = (x, y, w, h)
-
-        # preprocess
-        if is_resnet:
-            xb = _preprocess_face_resnet(crop, size=resnet_input_size, use_clahe=USE_CLAHE).to(device)
-        else:
-            xb = _preprocess_face_48(crop, use_clahe=USE_CLAHE).to(device)
-
-        with torch.inference_mode():
-            logits = model(xb)
-            prob = F.softmax(logits[0], dim=0).cpu().numpy()
-        k = int(prob.argmax())
-        label = f"{classes[k]} {prob[k]:.2f}"
-
-        # draw overlay on original full image
-        x, y, w, h = bbox
-        color = (0, 255, 0)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-        cv2.putText(frame, label, (x, max(0, y - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
-
-        # save
-        base, ext = os.path.splitext(nm)
-        out_name = f"{base}_overlay{ext}"
-        out_path = os.path.join(OUT_IMG_DIR, out_name)
-        ok = cv2.imwrite(out_path, frame)
-        if ok:
-            written += 1
-        else:
-            print(f"[eval][img] Failed to write: {out_path}")
-
-    print(f"[eval][img] Wrote {written} file(s) to {OUT_IMG_DIR}")
-    return written
-
 # -------------------------
 # Main test evaluation
 # -------------------------
-
 def main():
     # --------- Dataset / loader ---------
     if not os.path.exists(TEST_CSV):
@@ -291,7 +160,7 @@ def main():
         return
 
     # --------- Evaluate all ---------
-    results = []  # list of dicts
+    results = []
     t_all0 = time.perf_counter()
 
     for ckpt in ckpts:
@@ -349,8 +218,7 @@ def main():
         return
 
     # --------- Save CSV summary ---------
-    out_csv = os.path.join(OUT_CMP_DIR, "test_private_results.csv")
-    # Sort by accuracy desc
+    out_csv = os.path.join(OUT_CMP_DIR, f"test_{SPLIT_NAME}_results.csv")
     results_sorted = sorted(results, key=lambda r: (-r["acc"], r["model_name"], r["ckpt"]))
     with open(out_csv, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(results_sorted[0].keys()))
@@ -366,37 +234,18 @@ def main():
     colors = plt.cm.viridis(np.linspace(0, 1, len(labels)))
     bars = plt.bar(range(len(labels)), accs, color=colors)
     plt.xticks(range(len(labels)), labels, rotation=20, ha="right")
-    plt.ylabel("Accuracy (test_private)")
-    plt.title("Model Accuracy on FER2013 Private Test Set")
+    plt.ylabel(f"Accuracy ({SPLIT_NAME})")
+    title_split = SPLIT_NAME.replace("_", " ").title()
+    plt.title(f"Model Accuracy on FER2013 {title_split} Set")
     plt.ylim(0.0, 1.0)
     for b, a, c in zip(bars, accs, colors):
         plt.text(b.get_x() + b.get_width()/2, a + 0.01, f"{a*100:.1f}%", ha="center", va="bottom", fontsize=9, color=c)
     plt.grid(axis="y", alpha=0.25)
-    out_png = os.path.join(OUT_CMP_DIR, "test_private_overall.png")
+    out_png = os.path.join(OUT_CMP_DIR, f"test_{SPLIT_NAME}_overall.png")
     plt.tight_layout()
     plt.savefig(out_png, dpi=160)
     plt.close()
     print(f"[eval] Wrote: {out_png}")
-
-    # --------- NEW: run picture overlays with BEST checkpoint ---------
-    try:
-        best = results_sorted[0]
-        best_ckpt = os.path.join(PROJECT_ROOT, best["ckpt"])
-        state = load_checkpoint(best_ckpt)
-        classes = state.get("classes", DEFAULT_CLASSES)
-        model_name = best["model_name"]
-        is_resnet = model_name.startswith("resnet")
-        resnet_size = int(best.get("resnet_input", 160)) if is_resnet else 48
-        model = create_model(model_name, num_classes=len(classes))
-        model.load_state_dict(state["model"])
-        wrote = _save_picture_overlays(model, classes, DEVICE,
-                                       is_resnet=is_resnet,
-                                       resnet_input_size=resnet_size,
-                                       limit=None)  # set an int to limit
-        if wrote == 0:
-            print("[eval][img] No overlays written (no images found?).")
-    except Exception as e:
-        print(f"[eval][img] Skipped overlays: {e}")
 
     print(f"[eval] Done. Total time: {total_elapsed:.1f}s for {len(results_sorted)} model(s).")
 

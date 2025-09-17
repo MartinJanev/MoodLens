@@ -4,7 +4,7 @@ import torch
 from src.realtime.app import run_webcam
 
 # ======= Defaults you can tweak =======
-MODEL_PATH = 'models/cnn_small/best.pt'  # path to the trained model
+MODEL_PATH = 'models/cnn_small_silu/model.pt'  # path to the trained model
 MODEL_NAME = 'resnet18'  # 'cnn_small' or 'resnet18'
 CASCADE_PATH = 'assets/haarcascade_frontalface_default.xml'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
