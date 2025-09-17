@@ -23,10 +23,12 @@ pip-wheel-metadata/
 *.swo
 *.~
 
-datasets/
 src/data/fer2013.csv
-models_123/
-models_109/
-models/
-models_compare/
 src/test/
+/models/cnn_small_silu_10ep_32/
+/models/cnn_small_silu_10ep/
+/models/cnn_small_relu/
+/models/cnn_small_elu/
+/datasets/
+/models/cnn_small_100ep/
+/models/cnn_small_50ep/
