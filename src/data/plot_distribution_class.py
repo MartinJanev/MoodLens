@@ -27,7 +27,6 @@ plt.pie(
 plt.title("Emotion Class Distribution")
 plt.tight_layout()
 plt.savefig("emotion_class_distribution.png", dpi=300)
-plt.show()
 
 # count number of pictures per class
 def count_class():

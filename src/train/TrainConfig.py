@@ -51,8 +51,8 @@ class TrainConfig:
     show_progress: bool = True
 
     # --- early stopping ---
-    early_stop_patience: int = 9999
-    early_stop_delta: float = -1.0
+    early_stop_patience: int = 10
+    early_stop_delta: float = 0.001
     use_early_stopping: bool = True
 
     # ---------- Fast-ResNet knobs (ignored for cnn_small) ----------

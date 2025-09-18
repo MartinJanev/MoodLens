@@ -1,0 +1,4 @@
+best_epoch=25
+best_val_loss=1.353898
+best_val_acc=0.635890
+ckpt=models\resnet18\model_resnet.pt

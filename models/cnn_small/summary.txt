@@ -1,0 +1,4 @@
+best_epoch=23
+best_val_loss=1.087508
+best_val_acc=0.597523
+ckpt=models\cnn_small\model_cnn.pt

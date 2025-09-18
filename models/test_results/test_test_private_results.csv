@@ -1,0 +1,3 @@
+model_name,ckpt,acc,params,eval_time_s,resnet_input
+resnet18,models\resnet18\model_resnet.pt,0.6464196154917804,11180103,63.647242100007134,160
+cnn_small,models\cnn_small\model_cnn.pt,0.5873502368347729,570919,8.12649359999341,48
